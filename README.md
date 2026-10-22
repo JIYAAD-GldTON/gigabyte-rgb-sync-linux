@@ -1,51 +1,52 @@
 # GIGABYTE RGB Sync for Linux (Ubuntu 24.04 LTS)
 
-Native 1:1 hardware RGB synchronization utility for Gigabyte motherboards (ARGB headers `D_LED1`, `D_LED2`) and Gigabyte AMD Radeon graphics cards under Linux. Built to provide a lightweight, native alternative to Windows-only GIGABYTE Control Center (GCC) RGB Fusion.
+<p align="center">
+  <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
+  <img src="https://img.shields.io/badge/Python-3.12%2B-blue.svg" alt="Python Version">
+  <img src="https://img.shields.io/badge/Platform-Ubuntu%2024.04%20%7C%20Linux-orange.svg" alt="Platform">
+  <a href="https://github.com/morluto/rea">
+    <img src="https://img.shields.io/badge/Analyzed%20With-REA%20(Reverse%20Engineer%20Anything)-brightgreen.svg" alt="REA">
+  </a>
+</p>
+
+Native 1:1 hardware RGB synchronization utility for Gigabyte motherboards (addressable headers `D_LED1`, `D_LED2`) and Gigabyte AMD Radeon graphics cards under Linux. Built to replace the Windows-only **GIGABYTE Control Center (GCC) / RGB Fusion** software stack natively with zero overhead.
 
 ---
 
-## Overview & Architecture
+## 📸 Graphical User Interface (GUI)
 
-Under Windows, Gigabyte RGB synchronization relies on GIGABYTE Control Center (GCC) and proprietary background services communicating over USB HID and SMBus. On Linux, hardware peripherals default to uncoordinated onboard firmware profiles, and digital ARGB headers on the motherboard initialize with 0 allocated addressable LEDs.
-
-This tool solves this by providing:
-1. **Dynamic Zone Allocation**: Automatically allocates addressable LEDs (60 per digital header, 120 total) to motherboard headers `D_LED1` and `D_LED2`.
-2. **Direct Per-LED Streaming**: Puts both the GPU and motherboard controllers into `Direct` mode (`color_mode: PER_LED`), ensuring all RGB devices update simultaneously on the same clock tick.
-3. **Dual Operation Modes**: Modern PyQt6 Fusion Dark GUI for real-time control, plus a headless CLI daemon for background systemd autostart on system boot.
+<p align="center">
+  <img src="gui_screenshot.png" alt="GIGABYTE RGB Sync GUI on Linux" width="480">
+</p>
 
 ---
 
-## 🔬 Reverse Engineering via REA (Reverse Engineer Anything)
+## 🔬 How REA (Reverse Engineer Anything) Made This Possible
 
-This project was made possible using the open-source **[REA (Reverse Engineer Anything)](https://github.com/morluto/rea)** framework to inspect and disassemble the proprietary Windows-only **GIGABYTE Control Center (GCC)** binaries (`RGBFusion.exe`, `GvDisplayService.exe`, and `GLedApi.dll`):
+Under Windows, Gigabyte RGB synchronization is handled by proprietary closed-source services (`GvDisplayService.exe`, `GLedApi.dll`, and `RGBFusion.exe`). On Linux, motherboards and graphics cards drop into uncoordinated hardware presets, and addressable fan headers (`D_LED1`, `D_LED2`) initialize with 0 allocated LEDs.
+
+This project was built by using the open-source **[REA (Reverse Engineer Anything)](https://github.com/morluto/rea)** framework to inspect, disassemble, and extract protocol specifications directly from the compiled Windows GCC binaries:
 
 ### 1. Dissecting the ITE IT5702 USB HID Protocol
-- **Endpoint Discovery**: GCC communicates with the motherboard's onboard **ITE IT5702** microcontroller over an internal USB HID interface (Vendor ID `048d`, Product ID `5702`).
-- **Packet Structure**: Traffic capture and binary disassembly revealed that the hardware operates on 64-byte HID feature reports:
+- **Endpoint Identification**: GCC communicates with the motherboard's onboard **ITE IT5702** microcontroller via internal USB HID (Vendor ID `048d`, Product ID `5702`).
+- **Packet Mapping via REA**: Disassembly and traffic inspection with REA revealed that the controller operates on 64-byte HID feature reports:
   - `Byte 0`: Command Opcode (`0xCC` / `0xCD`)
-  - `Byte 1`: Zone Header Index (`0x00` for `D_LED1`, `0x01` for `D_LED2`)
+  - `Byte 1`: Zone Header Index (`0x00` = `D_LED1`, `0x01` = `D_LED2`)
   - `Byte 2`: Effect Mode (`0x00` = Direct per-LED streaming, `0x01` = Static, `0x02` = Pulse)
-  - `Byte 3`: Brightness scale factor (`0x00`–`0x64`)
+  - `Byte 3`: Hardware Brightness scaling (`0x00`–`0x64`)
   - `Bytes 4+`: Sequential 24-bit RGB/GRB color payloads
-- **The "0 LEDs" Lockout Discovery**: REA revealed why generic Linux drivers previously failed to light up case fans: the IT5702 controller initializes with its internal ARGB header count register set to `0`. Without Windows GCC actively sending a zone allocation payload, the controller discards all color data. This tool automates that exact allocation dynamically (`zone.resize(60)` per header).
+- **Cracking the "0 LEDs" Header Lockout**: REA revealed why generic Linux tools previously failed to illuminate case fans: the IT5702 controller powers on with an internal zone size table of `0`. Without Windows GCC actively sending a zone allocation payload, the controller discards incoming color streams. This tool automates that exact allocation dynamically (`zone.resize(60)` per header).
 
 ### 2. Decoding the AMD Radeon GPU I2C Bus
-- GCC talks to the Gigabyte AMD Radeon RX 9060 XT via the GPU's onboard I2C slave registers on the AMD display engine bus (`amdgpu` I2C adapter).
-- REA traced the register sequences that address the 4 independent RGB zones (Left Fan, Center Fan, Right Fan, and Side Logo) without interfering with GPU telemetry or thermal PWM fan curves.
+- GCC communicates with the Gigabyte AMD Radeon RX 9060 XT through the GPU's display engine auxiliary I2C bus (`amdgpu` adapter).
+- REA traced the register sequences that address the 4 independent onboard LED zones (Left Fan, Center Fan, Right Fan, and Side Logo) without disrupting GPU telemetry or thermal PWM fan curves.
 
 ### 3. Native Linux Translation
 - By translating the protocol specifications discovered during REA directly into userspace Linux abstractions (`udev` rules for non-root USB access, `i2c-dev`/`i2c-i801` kernel modules, and OpenRGB Direct Mode), native 1:1 synchronization is achieved with negligible CPU overhead and zero Windows runtime dependencies.
 
 ---
 
-## Hardware & Software Stack
-
-### Target Hardware Setup
-- **Motherboard:** Gigabyte Z790 EAGLE AX (ITE IT5702 RGB USB Controller `048d:5702`)
-- **Graphics Card:** Gigabyte AMD Radeon RX 9060 XT GAMING OC (Subsystem `2429:1458`, 4 Addressable LEDs)
-- **Fan Headers:** Gigabyte `D_LED1` & `D_LED2` 3-pin 5V addressable RGB headers (supports daisy-chained fans)
-
-### Supported Hardware & Ecosystem Matrix
+## 🖥️ Supported Hardware & Ecosystem Matrix
 
 This utility supports all Gigabyte devices recognized by the OpenRGB direct hardware abstraction bus:
 
@@ -59,8 +60,12 @@ This utility supports all Gigabyte devices recognized by the OpenRGB direct hard
 | **AIO Liquid Coolers** | AORUS Waterforce & Liquid Cooler Series | Internal USB Header HID | **Supported** (Pump + Radiator fans) |
 | **Peripherals** | AORUS Keyboards, Gaming Mice, Mousepads, Gaming Monitors | USB HID | **Supported** (Synchronized frames) |
 
-### Software & Dependencies
+---
+
+## 📦 Software Stack & Dependencies
+
 - **Operating System:** Ubuntu 24.04 LTS (`noble`) / Debian-based Linux
+- **Reverse Engineering Framework:** [REA (Reverse Engineer Anything)](https://github.com/morluto/rea)
 - **Core RGB Engine:** [OpenRGB](https://openrgb.org) 1.1 SDK server
 - **Python Library:** `openrgb-python` 0.3.8+ (Client SDK via TCP port 6742)
 - **GUI Framework:** PyQt6 (Qt 6.6+ with Fusion Dark styling)
@@ -73,24 +78,7 @@ This utility supports all Gigabyte devices recognized by the OpenRGB direct hard
 
 ---
 
-## Repository Structure
-
-```text
-gcc-linux/
-├── gcc_rgb_sync.py      # Main application (PyQt6 GUI + Headless CLI daemon engine)
-├── setup_ubuntu24.sh    # Automated installer for Ubuntu 24.04 (OpenRGB, modules, udev, service)
-├── gcc-sync.service     # Systemd user service unit for autostart on boot
-├── requirements.txt     # Python package requirements
-├── .gitignore           # Git ignore rules
-├── LICENSE              # MIT License
-└── README.md            # Documentation and technical guide
-```
-
----
-
-## Installation & Setup
-
-### 1. Automated Installation (Recommended)
+## ⚡ Quick 1-Command Installation
 
 Clone the repository and run the setup script:
 
@@ -101,29 +89,25 @@ chmod +x setup_ubuntu24.sh
 ./setup_ubuntu24.sh
 ```
 
-The script performs the following tasks:
+The script automatically:
 - Installs base dependencies (`i2c-tools`, `python3-pyqt6`, `python3-pip`).
-- Installs OpenRGB 1.1 binary and configures `/usr/local/bin/openrgb` & `/usr/bin/openrgb`.
+- Installs the standalone OpenRGB 1.1 binary and configures `/usr/local/bin/openrgb` & `/usr/bin/openrgb`.
 - Installs `openrgb-python` via `pip`.
 - Configures kernel modules (`i2c-dev`, `i2c-i801`) in `/etc/modules-load.d/gigabyte-rgb.conf`.
-- Adds the user to the `i2c` group for non-root bus access.
+- Adds the current user to the `i2c` group for non-root hardware access.
 - Deploys custom `udev` rules (`60-openrgb.rules`) for the ITE IT5702 USB controller.
-- Configures and enables the systemd background server `openrgb-server.service`.
-- Installs the `.desktop` desktop entry to your application menu.
+- Configures and enables the background server `openrgb-server.service`.
+- Creates a desktop application launcher in your Ubuntu application grid.
 
 > **Note:** A system reboot is recommended once after initial setup to apply the new `i2c` group permissions.
 
 ---
 
-## How to Use
+## 🎨 How to Use
 
 ### 1. Graphical User Interface (GUI)
 
-<p align="center">
-  <img src="gui_screenshot.png" alt="GIGABYTE RGB Sync GUI on Linux" width="460">
-</p>
-
-Launch from your application launcher under **"GIGABYTE RGB Sync"** or via terminal:
+Launch from the Ubuntu app menu: **"GIGABYTE RGB Sync"**, or launch from terminal:
 
 ```bash
 python3 gcc_rgb_sync.py
@@ -132,19 +116,20 @@ python3 gcc_rgb_sync.py
 #### GUI Controls & Features
 - **Bidirectional "Sync All" Lock**:
   - Checking `Sync All (1:1 Lock)` immediately activates both `GPU RGB` and `ARGB Fans`.
-  - Checking/unchecking individual target boxes dynamically synchronizes the `Sync All` state.
+  - Checking/unchecking individual target boxes dynamically cascades to update the `Sync All` state.
 - **Context-Aware Speed Control**:
-  - In **Static Color** and **Off** modes, speed is locked to the lowest value (`1`) and disabled to avoid invalid states.
-  - In animated modes (**Rainbow**, **Color Cycle**, **Breathing**, **Flashing**), speed control re-enables with full 1–10 range.
+  - In **Static Color** and **Off** modes, speed is locked to the lowest value (`1`) and disabled to prevent invalid states.
+  - In animated modes (**Rainbow**, **Color Cycle**, **Breathing**, **Flashing**), speed control re-enables with full dynamic range (1–10).
 - **Color Picker & Preview**: Built-in palette and custom hex color selector with real-time RGB preview.
 - **Brightness Slider**: 0% to 100% hardware scaling.
 - **Live Status Badge**: Displays real-time state and active hardware endpoints.
+- **Supported Ecosystem Dialog**: Click *View Supported Hardware Ecosystem List* to see full device support details.
 
 ---
 
-### 2. Command-Line Interface (CLI / Headless)
+### 2. Command-Line Interface (CLI / Headless Daemon)
 
-You can run effects directly without GUI dependencies (suitable for SSH sessions or scripts):
+You can run effects directly without GUI dependencies (ideal for SSH sessions, scripts, or lightweight environments):
 
 ```bash
 # Set static color by hex code
@@ -159,7 +144,7 @@ python3 gcc_rgb_sync.py --mode rainbow --speed 7
 # Synchronized breathing pulse
 python3 gcc_rgb_sync.py --mode breathing --color "#FF0055" --speed 4
 
-# Turn off all lighting
+# Turn off all lighting (Stealth mode)
 python3 gcc_rgb_sync.py --mode off
 ```
 
@@ -167,7 +152,7 @@ python3 gcc_rgb_sync.py --mode off
 
 ### 3. Autostart on Boot (Systemd)
 
-To run RGB sync persistently in the background without keeping a terminal open:
+To keep your RGB synchronized in the background without needing to launch the app:
 
 ```bash
 mkdir -p ~/.config/systemd/user/
@@ -178,7 +163,7 @@ systemctl --user enable --now gcc-sync.service
 
 ---
 
-## Troubleshooting
+## 🛠️ Troubleshooting
 
 1. **`[Errno 111] Connection refused`**:
    The OpenRGB background server is not running. Start it with:
@@ -192,6 +177,13 @@ systemctl --user enable --now gcc-sync.service
 
 ---
 
-## License
+## 🙏 Acknowledgments & Credits
+
+- **[REA (Reverse Engineer Anything)](https://github.com/morluto/rea)**: For the reverse engineering framework used to inspect and disassemble the closed-source GCC binaries.
+- **[OpenRGB](https://openrgb.org)**: For the open-source hardware communication SDK and udev rules database.
+
+---
+
+## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
