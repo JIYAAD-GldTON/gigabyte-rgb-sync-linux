@@ -457,7 +457,7 @@ def run_gui(engine: GccRgbSyncEngine):
     main_layout.addWidget(status_bar)
 
     # Apply & Sync Button
-    btn_apply = QPushButton("⚡ APPLY & SYNC ALL")
+    btn_apply = QPushButton("⚡ APPLY && SYNC ALL")
     btn_apply.setFixedHeight(46)
     btn_apply.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
     btn_apply.setStyleSheet("""

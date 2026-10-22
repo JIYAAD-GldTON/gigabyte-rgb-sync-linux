@@ -119,6 +119,10 @@ The script performs the following tasks:
 
 ### 1. Graphical User Interface (GUI)
 
+<p align="center">
+  <img src="gui_screenshot.png" alt="GIGABYTE RGB Sync GUI on Linux" width="460">
+</p>
+
 Launch from your application launcher under **"GIGABYTE RGB Sync"** or via terminal:
 
 ```bash
