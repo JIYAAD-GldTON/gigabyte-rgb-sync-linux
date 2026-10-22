@@ -15,9 +15,9 @@ This tool solves this by providing:
 
 ---
 
-## 🔬 Reverse Engineering & Analysis (REA)
+## 🔬 Reverse Engineering via REA (Reverse Engineer Anything)
 
-This project was made possible by performing in-depth **Reverse Engineering and Analysis (REA)** on the proprietary Windows-only **GIGABYTE Control Center (GCC)** software stack (`RGBFusion.exe`, `GvDisplayService`, and `GLedApi.dll`):
+This project was made possible using the open-source **[REA (Reverse Engineer Anything)](https://github.com/morluto/rea)** framework to inspect and disassemble the proprietary Windows-only **GIGABYTE Control Center (GCC)** binaries (`RGBFusion.exe`, `GvDisplayService.exe`, and `GLedApi.dll`):
 
 ### 1. Dissecting the ITE IT5702 USB HID Protocol
 - **Endpoint Discovery**: GCC communicates with the motherboard's onboard **ITE IT5702** microcontroller over an internal USB HID interface (Vendor ID `048d`, Product ID `5702`).
