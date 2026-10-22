@@ -1,0 +1,13 @@
+[Unit]
+Description=GIGABYTE 1:1 RGB Sync Daemon (GPU + ARGB Fans)
+After=openrgb-server.service
+Wants=openrgb-server.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/gcc-linux/gcc_rgb_sync.py --cli
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
